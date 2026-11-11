@@ -1,7 +1,2 @@
-# Protection des fichiers sensibles
-<FilesMatch "^(config\.php|db\.php|helpers\.php)$">
-Deny from all
-</FilesMatch>
-
-# Page d'accueil par defaut
-DirectoryIndex index.php admin.php
+# Active PHP 5 sur les Pages Perso Free (sans cette ligne, Free utilise PHP 4)
+php 1

@@ -45,11 +45,17 @@ aux parents, via des liens personnels uniques.
 4. Ouvrez `https://votre-site.free.fr/` (ou `/rendezvous/`) et connectez-vous
    avec votre mot de passe.
 
-### Si vous obtenez une erreur 500
-Le fichier `.htaccess` protège `config.php`, `db.php`, `helpers.php` et le
-dossier `data/`. Si votre hébergement n'accepte pas la directive `Deny from all`,
-supprimez le contenu des fichiers `.htaccess` : le site fonctionne quand même
-(les fichiers PHP inclus ne sont pas appelables directement).
+### Important : activer PHP 5 sur Free
+Le fichier `.htaccess` fourni contient la ligne `php 1` : elle est **indispensable**
+sur les Pages Perso Free, sinon le serveur utilise PHP 4 et le site affiche une
+erreur du type « Parse error: unexpected T_OBJECT_OPERATOR ».
+Si vous avez renommé ou supprimé le `.htaccess`, remettez-le (il ne contient que
+cette ligne, il ne peut pas provoquer d'erreur 500).
+
+### Protection du dossier data/
+Le dossier `data/` contient un `.htaccess` qui interdit l'accès direct à la base
+SQLite depuis le navigateur. Directement accéder à `config.php`, `db.php` ou
+`helpers.php` n'est pas un problème : ces fichiers n'affichent rien.
 
 ## Utilisation type
 
