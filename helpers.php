@@ -1,6 +1,10 @@
 <?php
 
 if (session_status() === PHP_SESSION_NONE) {
+    $savePath = ini_get('session.save_path');
+    if ($savePath !== false && $savePath !== '' && !is_dir($savePath)) {
+        @mkdir($savePath, 0700, true);
+    }
     session_start();
 }
 
