@@ -1,2 +1,5 @@
-# Active PHP 5 sur les Pages Perso Free (sans cette ligne, Free utilise PHP 4)
-php 1
+# Choix de la version de PHP sur les Pages Perso Free
+# (une seule directive phpXX doit être active)
+<IfDefine Free>
+php85 1
+</IfDefine>

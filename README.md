@@ -45,12 +45,20 @@ aux parents, via des liens personnels uniques.
 4. Ouvrez `https://votre-site.free.fr/` (ou `/rendezvous/`) et connectez-vous
    avec votre mot de passe.
 
-### Important : activer PHP 5 sur Free
-Le fichier `.htaccess` fourni contient la ligne `php 1` : elle est **indispensable**
-sur les Pages Perso Free, sinon le serveur utilise PHP 4 et le site affiche une
-erreur du type « Parse error: unexpected T_OBJECT_OPERATOR ».
-Si vous avez renommé ou supprimé le `.htaccess`, remettez-le (il ne contient que
-cette ligne, il ne peut pas provoquer d'erreur 500).
+### Important : choisir la version de PHP sur Free
+Le fichier `.htaccess` fourni active **PHP 8.5** (recommandé par Free pour un
+site neuf) via la directive officielle :
+
+    <IfDefine Free>
+    php85 1
+    </IfDefine>
+
+Sans `.htaccess` (ou sans cette directive), Free utilise PHP 4.4 et le site
+affiche une erreur du type « Parse error: unexpected T_OBJECT_OPERATOR ».
+
+Le code est également compatible PHP 5.6 : s'il vous faut cette version,
+remplacez simplement `php85 1` par `php56 1` dans le `.htaccess` (une seule
+directive `phpXX` doit être présente).
 
 ### Protection du dossier data/
 Le dossier `data/` contient un `.htaccess` qui interdit l'accès direct à la base
