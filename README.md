@@ -10,12 +10,33 @@ aux parents, via des liens personnels uniques.
 - Accès protégé par mot de passe (voir `config.php`).
 - Ajout / suppression d'enfants (Prénom + initiale du nom).
 - Chaque enfant génère automatiquement un **lien unique** (avec boutons
-  « Copier » et « ✉ Email » prêts à envoyer aux parents).
+  « Copier » et « Brouillon »).
 - Ajout de créneaux par date + heure début + heure fin → générés par
   tranches de 15 minutes (heure fin vide = un seul créneau).
 - Tableau récapitulatif : créneaux **disponibles**, **réservés** (avec le nom de
   l'enfant) et **passés** (grisés automatiquement).
 - Actions : libérer un créneau réservé, supprimer un créneau libre.
+
+### Emails des parents
+- **Carnet d'adresses** : ajout d'adresses une par une, ou **import d'une liste
+  complète en collant** un texte (une adresse par ligne, formats acceptés :
+  `Marie <marie@exemple.fr>`, `Marie; marie@exemple.fr`, `marie@exemple.fr`).
+- Association d'une adresse à chaque enfant via un **menu déroulant**.
+- Bouton **« ✉ Envoyer »** par enfant : envoie le lien personnel par email
+  (fonction `mail()` de PHP, disponible sur les Pages Perso Free).
+- Bouton **« ✉ Envoyer les liens à tous »** : envoie individuellement un email
+  personnalisé (avec le lien unique de chaque enfant) à toutes les familles
+  qui ont une adresse enregistrée.
+- Indiquez votre adresse @free.fr comme **expéditeur** dans Réglages pour une
+  meilleure délivrabilité.
+
+### Réglages
+- **Titre du site** personnalisable.
+- **Thème de couleurs** (rose, bleu, vert, violet, orange, turquoise) ou
+  **couleur principale personnalisée** — appliqué aussi à la page parents.
+- **Adresse expéditrice** des emails.
+- **Nouvelle session** : boutons pour effacer tous les créneaux (les enfants et
+  leurs liens sont conservés) ou effacer aussi tous les enfants.
 
 ### Côté parents (`parent.php?token=xxxx`)
 - Le parent ouvre son lien personnel : il voit les créneaux disponibles à venir.

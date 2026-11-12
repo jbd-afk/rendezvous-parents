@@ -105,22 +105,23 @@ if ($child) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Rendez-vous<?php echo $child ? ' — ' . e(child_name($child['first_name'], $child['last_initial'])) : ''; ?></title>
+<title><?php echo e(site_title()); ?><?php echo $child ? ' — ' . e(child_name($child['first_name'], $child['last_initial'])) : ''; ?></title>
 <link rel="stylesheet" href="style.css">
+<?php echo theme_style_tag(); ?>
 </head>
 <body>
 <div class="page">
 
 <?php if (!$child) { ?>
     <div class="card login-card">
-        <h1>🌸 Rendez-vous</h1>
+        <h1>🌸 <?php echo e(site_title()); ?></h1>
         <p class="muted">Ce lien est invalide ou incomplet.<br>Vérifiez le lien reçu par email (il doit contenir votre identifiant personnel).</p>
     </div>
 
 <?php } else { ?>
 
     <header class="topbar">
-        <h1>🌸 Rendez-vous</h1>
+        <h1>🌸 <?php echo e(site_title()); ?></h1>
         <span class="child-chip"><?php echo e(child_name($child['first_name'], $child['last_initial'])); ?></span>
     </header>
 

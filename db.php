@@ -64,6 +64,23 @@ function init_db($pdo)
             PRIMARY KEY (id),
             UNIQUE KEY uq_bookings_slot (slot_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS contacts (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(120) NOT NULL DEFAULT '',
+            email VARCHAR(190) NOT NULL,
+            created_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_contacts_email (email)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
+            skey VARCHAR(64) NOT NULL,
+            svalue TEXT NOT NULL,
+            PRIMARY KEY (skey)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+
+        try { $pdo->exec('ALTER TABLE children ADD email VARCHAR(190) NULL DEFAULT NULL'); } catch (PDOException $ex) {}
     } else {
         $pdo->exec("CREATE TABLE IF NOT EXISTS children (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,6 +104,20 @@ function init_db($pdo)
             child_id INTEGER NOT NULL,
             created_at TEXT NOT NULL
         )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL DEFAULT '',
+            email TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
+            skey TEXT NOT NULL PRIMARY KEY,
+            svalue TEXT NOT NULL
+        )");
+
+        try { $pdo->exec('ALTER TABLE children ADD COLUMN email TEXT NULL'); } catch (PDOException $ex) {}
     }
 }
 
