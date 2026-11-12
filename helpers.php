@@ -245,5 +245,9 @@ function send_parent_email($to, $child)
     if ($sender !== '') {
         $headers .= 'From: ' . $sender . "\r\n";
     }
+    $reply = get_setting('reply_email', '');
+    if ($reply !== '') {
+        $headers .= 'Reply-To: ' . $reply . "\r\n";
+    }
     return (bool) @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
 }

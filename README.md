@@ -27,8 +27,10 @@ aux parents, via des liens personnels uniques.
 - Bouton **« ✉ Envoyer les liens à tous »** : envoie individuellement un email
   personnalisé (avec le lien unique de chaque enfant) à toutes les familles
   qui ont une adresse enregistrée.
-- Indiquez votre adresse @free.fr comme **expéditeur** dans Réglages pour une
-  meilleure délivrabilité.
+- Indiquez votre adresse @free.fr comme **expéditeur** (From) dans Réglages
+  pour une meilleure délivrabilité, et votre adresse professionnelle (ex.
+  académique) comme **adresse de réponse** (Reply-To) : les réponses des
+  parents arriveront dans votre boîte académique.
 
 ### Réglages
 - **Titre du site** personnalisable.
@@ -99,9 +101,29 @@ SQLite depuis le navigateur. Directement accéder à `config.php`, `db.php` ou
 | Fichier | Rôle |
 |---|---|
 | `config.php` | Mot de passe admin, base de données, adresse du site |
-| `admin.php` | Espace admin (enfants, créneaux, récapitulatif) |
+| `admin.php` | Espace admin (enfants, créneaux, récapitulatif, emails, réglages) |
 | `parent.php` | Page de réservation des parents (accès par lien unique) |
 | `db.php` | Connexion base + création automatique des tables |
-| `helpers.php` | Fonctions utilitaires (sécurité, dates françaises…) |
-| `style.css` | Design rosé |
-| `data/` | Base SQLite (créée automatiquement) |
+| `helpers.php` | Fonctions utilitaires (sécurité, dates françaises, emails…) |
+| `style.css` | Design (thème de couleurs paramétrable) |
+| `data/` | Base SQLite (créée automatiquement, accès web bloqué) |
+| `sessions/` | Sessions PHP (créées automatiquement, accès web bloqué) |
+
+## Données personnelles (RGPD) et sécurité
+
+- Les emails des parents sont stockés **uniquement dans la base de données de
+  l'hébergement** (chez Free), jamais chez un service tiers.
+- Le dossier `data/` (base SQLite) est **bloqué au web** par un `.htaccess` :
+  la base n'est pas téléchargeable depuis un navigateur.
+- Les adresses email **ne sont jamais affichées sur la page parents** : elles
+  ne sont visibles que dans l'espace admin, protégé par mot de passe.
+- Les pages parents ne montrent que le prénom + initiale de l'enfant.
+- Recommandations :
+  - choisir un **mot de passe admin long et unique** ;
+  - accéder à l'admin en **HTTPS** (`https://…free.fr`) ;
+  - utiliser les boutons « Effacer » (section Réglages) pour **purger les
+    données en fin d'année scolaire** (les emails, enfants et créneaux) ;
+  - ne stocker que le nécessaire : prénom + initiale et adresse email.
+- Alternative « zéro stockage » : si vous préférez ne stocker aucune adresse,
+  n'utilisez pas le carnet d'adresses et envoyez les liens avec les boutons
+  « Copier » / « Brouillon » depuis votre propre logiciel de messagerie.

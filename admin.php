@@ -250,7 +250,13 @@ if ($logged && $action !== '') {
             set_flash('err', 'Adresse expéditrice invalide : les autres réglages sont enregistrés.');
         } else {
             set_setting('sender_email', $sender);
-            set_flash('ok', 'Réglages enregistrés.');
+            $reply = trim(isset($_POST['reply_email']) ? $_POST['reply_email'] : '');
+            if ($reply !== '' && !filter_var($reply, FILTER_VALIDATE_EMAIL)) {
+                set_flash('err', 'Adresse de réponse invalide : les autres réglages sont enregistrés.');
+            } else {
+                set_setting('reply_email', $reply);
+                set_flash('ok', 'Réglages enregistrés.');
+            }
         }
         redirect('admin.php#reglages');
     }
@@ -308,6 +314,7 @@ $siteTitle = site_title();
 $themeKey = get_setting('theme', 'rose');
 $customPrimary = get_setting('custom_primary', '');
 $senderEmail = get_setting('sender_email', '');
+$replyEmail = get_setting('reply_email', '');
 $presets = theme_presets();
 $colors = theme_colors();
 $childrenWithEmail = 0;
@@ -579,6 +586,12 @@ foreach ($children as $c) {
 
                 <label>Email expéditeur (From)
                     <input type="text" name="sender_email" value="<?php echo e($senderEmail); ?>" placeholder="vous@free.fr" maxlength="190">
+                    <small class="muted">De préférence l'adresse @free.fr du site (les serveurs Free ne sont pas autorisés à envoyer au nom d'autres domaines).</small>
+                </label>
+
+                <label>Adresse de réponse (Reply-To)
+                    <input type="text" name="reply_email" value="<?php echo e($replyEmail); ?>" placeholder="prenom.nom@ac-xxx.fr" maxlength="190">
+                    <small class="muted">Quand un parent répond, le message part vers cette adresse (ex. l'adresse académique).</small>
                 </label>
             </div>
 
