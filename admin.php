@@ -88,11 +88,14 @@ if ($logged && $action !== '') {
         } elseif ($child[$emailCol] === null || $child[$emailCol] === '') {
             set_flash('err', 'Choisissez d\'abord l\'email du Parent ' . $which . ' pour ' . child_name($child['first_name'], $child['last_initial']) . ' (menu déroulant puis OK).');
         } else {
-            if (send_parent_email($child[$emailCol], $child)) {
+            $result = send_parent_email($child[$emailCol], $child);
+            if ($result['ok']) {
                 $pdo->prepare('UPDATE children SET ' . $stampCol . ' = ? WHERE id = ?')->execute(array(db_now(), $id));
                 set_flash('ok', 'Email envoyé au Parent ' . $which . ' (' . $child[$emailCol] . ') avec le lien de ' . child_name($child['first_name'], $child['last_initial']) . '.');
             } else {
-                set_flash('err', 'L\'envoi à ' . $child[$emailCol] . ' a échoué. Vérifiez l\'adresse expéditrice dans Réglages, ou utilisez le bouton « Brouillon ».');
+                $detail = ($result['error'] !== '') ? 'Raison renvoyée par le serveur : « ' . $result['error'] . ' ». ' : '';
+                set_flash('err', 'Envoi au Parent ' . $which . ' (' . $child[$emailCol] . ') impossible. ' . $detail
+                    . 'Rappel : l\'expéditeur (From) dans Réglages doit être l\'adresse @free.fr du compte qui héberge le site, sinon le filtre antispam de Free bloque (TO_BLOCK_SPAM).');
             }
         }
         redirect('admin.php#enfants');
@@ -110,12 +113,14 @@ if ($logged && $action !== '') {
                     continue;
                 }
                 $targets++;
-                if (send_parent_email($email, $child)) {
+                $result = send_parent_email($email, $child);
+                if ($result['ok']) {
                     $stampCol = $which === 1 ? 'mail_sent_at1' : 'mail_sent_at2';
                     $pdo->prepare('UPDATE children SET ' . $stampCol . ' = ? WHERE id = ?')->execute(array(db_now(), $child['id']));
                     $sent++;
                 } else {
                     $failed++;
+                    $lastError = $result['error'];
                 }
             }
         }
@@ -125,6 +130,10 @@ if ($logged && $action !== '') {
             $msg = $sent . ' email' . ($sent > 1 ? 's' : '') . ' envoyé' . ($sent > 1 ? 's' : '') . '.';
             if ($failed > 0) {
                 $msg .= ' ' . $failed . ' échec' . ($failed > 1 ? 's' : '') . '.';
+                if ($lastError !== '') {
+                    $msg .= ' Dernière raison : « ' . $lastError . ' ».';
+                }
+                $msg .= ' L\'expéditeur (From) doit être l\'adresse @free.fr du compte ; quota Free : 2000 emails/semaine, 20 par clic.';
             }
             set_flash($failed > 0 ? 'err' : 'ok', $msg);
         }
@@ -283,6 +292,26 @@ if ($logged && $action !== '') {
             } else {
                 set_setting('reply_email', $reply);
                 set_flash('ok', 'Réglages enregistrés.');
+            }
+        }
+        redirect('admin.php#reglages');
+    }
+
+    /* ----- Test d'envoi d'email (Réglages) ----- */
+
+    if ($action === 'test_email') {
+        $to = trim(isset($_POST['test_email']) ? $_POST['test_email'] : '');
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            set_flash('err', 'Adresse de test invalide.');
+        } else {
+            $fakeChild = array('first_name' => 'Test', 'last_initial' => 'X', 'token' => generate_token());
+            $result = send_parent_email($to, $fakeChild);
+            if ($result['ok']) {
+                set_flash('ok', 'Email de test envoyé à ' . $to . ' (lien fictif). Vérifiez qu\'il arrive et qu\'il n\'est pas en spam.');
+            } else {
+                $detail = ($result['error'] !== '') ? 'Raison : « ' . $result['error'] . ' ». ' : '';
+                set_flash('err', 'Échec de l\'envoi de test à ' . $to . '. ' . $detail
+                    . 'Vérifiez que l\'expéditeur (From) est l\'adresse @free.fr du compte hébergeant le site.');
             }
         }
         redirect('admin.php#reglages');
@@ -662,6 +691,14 @@ foreach ($children as $c) {
                 <label>Adresse de réponse (Reply-To)
                     <input type="text" name="reply_email" value="<?php echo e($replyEmail); ?>" placeholder="prenom.nom@ac-xxx.fr" maxlength="190">
                     <small class="muted">Les réponses des parents arrivent vers cette adresse.</small>
+                </label>
+
+                <label class="wide-label">Tester l'envoi d'un email
+                    <div class="form-inline">
+                        <input type="text" name="test_email" placeholder="votre@email.fr" style="flex:1; min-width:220px;">
+                        <button type="submit" class="btn btn-secondary" name="action" value="test_email" onclick="return confirm('Envoyer un email de test (avec un lien fictif) à l\'adresse indiquée ?');">Envoyer le test</button>
+                    </div>
+                    <small class="muted">Indiquez votre propre adresse et vérifiez la réception (et le dossier spam). Le message : « TO_BLOCK_SPAM » signifie que l'expéditeur (From) n'est pas l'adresse @free.fr du compte.</small>
                 </label>
 
                 <label class="wide-label">Objet des emails

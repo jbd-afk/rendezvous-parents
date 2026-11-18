@@ -276,5 +276,15 @@ function send_parent_email($to, $child)
     if ($reply !== '') {
         $headers .= 'Reply-To: ' . $reply . "\r\n";
     }
-    return (bool) @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
+
+    /* Capture l'avertissement éventuel de mail() pour afficher la raison de l'échec */
+    $error = '';
+    set_error_handler(function ($severity, $message) use (&$error) {
+        $error = preg_replace('/^[^:]*:\s*/', '', (string) $message);
+        return true;
+    });
+    $ok = mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
+    restore_error_handler();
+
+    return array('ok' => (bool) $ok, 'error' => $error);
 }
