@@ -458,6 +458,10 @@ foreach ($children as $c) {
 
     <section class="card" id="recap">
         <h2>📋 Récapitulatif des créneaux</h2>
+        <div class="recap-actions">
+            <a class="btn btn-secondary" href="pdf.php">📄 Télécharger le PDF (semaine par semaine)</a>
+            <span class="muted small">Tableau des rendez-vous réservés : jour, heure et nom de l'enfant.</span>
+        </div>
         <?php if ($total === 0) { ?>
             <p class="muted">Aucun créneau proposé pour le moment.</p>
         <?php } else { ?>

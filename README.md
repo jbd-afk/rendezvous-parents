@@ -16,6 +16,10 @@ aux parents, via des liens personnels uniques.
 - Tableau récapitulatif : créneaux **disponibles**, **réservés** (avec le nom de
   l'enfant) et **passés** (grisés automatiquement).
 - Actions : libérer un créneau réservé, supprimer un créneau libre.
+- **Export PDF** : un bouton génère un PDF récapitulatif des rendez-vous
+  (jour, heure, enfant), groupé semaine par semaine, aux couleurs du site
+  (généré avec FPDF, inclus).
+- Fonctionne en PHP 5.6 et PHP 8.5 (directive `php56 1` ou `php85 1`).
 
 ### Emails des parents
 - **Carnet d'adresses** : ajout d'adresses une par une, ou **import d'une liste
@@ -103,6 +107,8 @@ SQLite depuis le navigateur. Directement accéder à `config.php`, `db.php` ou
 | `config.php` | Mot de passe admin, base de données, adresse du site |
 | `admin.php` | Espace admin (enfants, créneaux, récapitulatif, emails, réglages) |
 | `parent.php` | Page de réservation des parents (accès par lien unique) |
+| `pdf.php` | Export PDF des rendez-vous (réservé à l'admin) |
+| `fpdf.php` | Bibliothèque FPDF 1.9 (voir `FPDF-LICENSE.txt`) |
 | `db.php` | Connexion base + création automatique des tables |
 | `helpers.php` | Fonctions utilitaires (sécurité, dates françaises, emails…) |
 | `style.css` | Design (thème de couleurs paramétrable) |

@@ -200,6 +200,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--rose-soft);
 
 .send-all { margin-top: 6px; }
 
+.recap-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
 .danger-zone {
     border: 1px solid #ffc9c9;
     background: #fffafa;
