@@ -102,40 +102,63 @@ if ($logged && $action !== '') {
     }
 
     if ($action === 'send_all_emails') {
-        $all = $pdo->query('SELECT * FROM children ORDER BY first_name ASC')->fetchAll();
-        $targets = 0;
-        $sent = 0;
-        $failed = 0;
+        /* Limites Free : 20 appels mail() max par script → envoi par paquets de 6 */
+        $all = $pdo->query('SELECT * FROM children ORDER BY id ASC')->fetchAll();
+        $recipients = array();
         foreach ($all as $child) {
             foreach (array(1 => 'email1', 2 => 'email2') as $which => $col) {
                 $email = $child[$col];
-                if ($email === null || $email === '') {
-                    continue;
-                }
-                $targets++;
-                $result = send_parent_email($email, $child);
-                if ($result['ok']) {
-                    $stampCol = $which === 1 ? 'mail_sent_at1' : 'mail_sent_at2';
-                    $pdo->prepare('UPDATE children SET ' . $stampCol . ' = ? WHERE id = ?')->execute(array(db_now(), $child['id']));
-                    $sent++;
-                } else {
-                    $failed++;
-                    $lastError = $result['error'];
+                if ($email !== null && $email !== '') {
+                    $recipients[] = array('child' => $child, 'which' => $which, 'email' => $email);
                 }
             }
         }
-        if ($targets === 0) {
+        if (count($recipients) === 0) {
             set_flash('err', 'Aucun email parent enregistré. Associez d\'abord les emails (Parent 1 / Parent 2) dans la section « Enfants ».');
-        } else {
-            $msg = $sent . ' email' . ($sent > 1 ? 's' : '') . ' envoyé' . ($sent > 1 ? 's' : '') . '.';
-            if ($failed > 0) {
-                $msg .= ' ' . $failed . ' échec' . ($failed > 1 ? 's' : '') . '.';
-                if ($lastError !== '') {
-                    $msg .= ' Dernière raison : « ' . $lastError . ' ».';
-                }
-                $msg .= ' L\'expéditeur (From) doit être l\'adresse @free.fr du compte ; quota Free : 2000 emails/semaine, 20 par clic.';
+            redirect('admin.php#emails');
+        }
+
+        $batchSize = 6;
+        $offset = intval(get_setting('bulk_offset', '0'));
+        if ($offset < 0 || $offset >= count($recipients)) {
+            $offset = 0;
+        }
+        $batch = array_slice($recipients, $offset, $batchSize);
+
+        $sentN = 0;
+        $failed = 0;
+        $lastError = '';
+        foreach ($batch as $r) {
+            usleep(500000); /* éviter les envois trop rapprochés (filtre antispam Free) */
+            $result = send_parent_email($r['email'], $r['child']);
+            if ($result['ok']) {
+                $stampCol = $r['which'] === 1 ? 'mail_sent_at1' : 'mail_sent_at2';
+                $pdo->prepare('UPDATE children SET ' . $stampCol . ' = ? WHERE id = ?')->execute(array(db_now(), $r['child']['id']));
+                $sentN++;
+            } else {
+                $failed++;
+                $lastError = $result['error'];
             }
-            set_flash($failed > 0 ? 'err' : 'ok', $msg);
+        }
+
+        $newOffset = $offset + count($batch);
+        $remaining = count($recipients) - $newOffset;
+        set_setting('bulk_offset', $remaining > 0 ? (string) $newOffset : '0');
+
+        $msg = $sentN . ' email' . ($sentN > 1 ? 's' : '') . ' envoyé' . ($sentN > 1 ? 's' : '');
+        if ($remaining > 0) {
+            $msg .= ' — il en reste ' . $remaining . ' : recliquez sur « Envoyer les emails à tous » pour continuer (paquets de ' . $batchSize . ', limites Free).';
+        } else {
+            $msg .= '. Tout le monde a reçu son message.';
+        }
+        if ($failed > 0) {
+            $msg .= ' ' . $failed . ' échec' . ($failed > 1 ? 's' : '') . '.';
+            if ($lastError !== '') {
+                $msg .= ' Dernière raison : « ' . $lastError . ' ».';
+            }
+            set_flash('err', $msg);
+        } else {
+            set_flash('ok', $msg);
         }
         redirect('admin.php#emails');
     }
@@ -654,7 +677,7 @@ foreach ($children as $c) {
                 ✉ Envoyer les emails à tous (<?php echo $childrenWithEmail; ?> familles)
             </button>
         </form>
-        <p class="muted small">Chaque parent reçoit son propre email avec le lien unique de l'enfant. L'objet et le contenu des emails se règlent dans Réglages.</p>
+        <p class="muted small">Chaque parent reçoit son propre email avec le lien unique de l'enfant. L'envoi se fait par paquets (limites Free) : cliquez plusieurs fois jusqu'à ce que tout soit parti. Objet et contenu des emails se règlent dans Réglages.</p>
     </section>
 
     <?php /* ----- Onglet Réglages ----- */ ?>

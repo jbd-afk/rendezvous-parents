@@ -35,6 +35,19 @@ aux parents, via des liens personnels uniques.
   enregistrés.
 - Objet et contenu des emails **personnalisables dans Réglages** via le
   modèle avec variables `{enfant}`, `{lien}`, `{titre}`.
+- Bouton **« Envoyer le test »** dans Réglages pour vérifier l'envoi vers
+  votre propre adresse (avec la raison exacte en cas d'échec).
+
+### Limites email chez Free (important)
+- L'expéditeur (From) **doit être l'adresse `@free.fr` du compte** hébergeant
+  le site, sinon le filtre antispam bloque (`TO_BLOCK_SPAM`).
+- Quota : **2000 emails/semaine** par compte ; **20 appels à `mail()` max par
+  script** → l'envoi groupé se fait **par paquets de 6**, à relancer
+  plusieurs fois.
+- Si `mail()` répond en moins de 2 s, l'email n'est en réalité pas envoyé :
+  le site le signale et invite à réessayer.
+- Les blocages pour spam se réinitialisent automatiquement de temps en temps
+  (fin de semaine). En attendant : boutons « Copier le lien » / « Brouillon ».
 - Indiquez votre adresse @free.fr comme **expéditeur** (From) dans Réglages
   pour une meilleure délivrabilité, et votre adresse professionnelle (ex.
   académique) comme **adresse de réponse** (Reply-To) : les réponses des

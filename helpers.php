@@ -279,12 +279,23 @@ function send_parent_email($to, $child)
 
     /* Capture l'avertissement éventuel de mail() pour afficher la raison de l'échec */
     $error = '';
+    $start = time();
     set_error_handler(function ($severity, $message) use (&$error) {
         $error = preg_replace('/^[^:]*:\s*/', '', (string) $message);
         return true;
     });
     $ok = mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
     restore_error_handler();
+
+    /* Particularité Free : si mail() répond trop vite (< 2 s), l'email n'est
+       en réalité pas envoyé, même si la fonction renvoie true. */
+    $elapsed = time() - $start;
+    if ($ok && $elapsed <= 1) {
+        return array(
+            'ok' => false,
+            'error' => 'le serveur a répondu trop vite : l\'email n\'a probablement pas été remi (particularité des Pages Perso Free). Réessayez dans quelques secondes.'
+        );
+    }
 
     return array('ok' => (bool) $ok, 'error' => $error);
 }
