@@ -221,22 +221,49 @@ function theme_style_tag()
 
 /* ----- Emails ----- */
 
+function mail_template_defaults()
+{
+    return array(
+        'subject' => '{titre} — Rendez-vous de {enfant}',
+        'body' => "Bonjour,\n\nVoici le lien pour réserver le créneau de rencontre de {enfant} :\n\n{lien}\n\nChaque famille réserve un seul créneau de 15 minutes : une fois réservé, il est bloqué pour les autres.\nSi vous ne pouvez finalement pas venir, vous pourrez libérer le créneau depuis ce même lien.\n\nÀ bientôt !",
+    );
+}
+
+function mail_fill($template, $child)
+{
+    return str_replace(
+        array('{titre}', '{enfant}', '{lien}'),
+        array(site_title(), child_name($child['first_name'], $child['last_initial']), child_link($child['token'])),
+        $template
+    );
+}
+
+function mail_subject($child)
+{
+    $defaults = mail_template_defaults();
+    $template = get_setting('mail_subject', $defaults['subject']);
+    if (trim($template) === '') {
+        $template = $defaults['subject'];
+    }
+    return mail_fill($template, $child);
+}
+
 function parent_email_body($child, $crlf = false)
 {
-    $nl = $crlf ? "\r\n" : "\n";
-    $name = child_name($child['first_name'], $child['last_initial']);
-    $link = child_link($child['token']);
-    return 'Bonjour,' . $nl . $nl
-        . 'Voici le lien pour réserver le créneau de rencontre de ' . $name . ' :' . $nl . $nl
-        . $link . $nl . $nl
-        . 'Chaque famille réserve un seul créneau de 15 minutes : une fois réservé, il est bloqué pour les autres.' . $nl
-        . 'Si vous ne pouvez finalement pas venir, vous pourrez libérer le créneau depuis ce même lien.' . $nl . $nl
-        . 'À bientôt !';
+    $defaults = mail_template_defaults();
+    $template = get_setting('mail_body', $defaults['body']);
+    if (trim($template) === '') {
+        $template = $defaults['body'];
+    }
+    if ($crlf) {
+        $template = str_replace("\n", "\r\n", $template);
+    }
+    return mail_fill($template, $child);
 }
 
 function send_parent_email($to, $child)
 {
-    $subject = site_title() . ' — Rendez-vous de ' . child_name($child['first_name'], $child['last_initial']);
+    $subject = mail_subject($child);
     $body = parent_email_body($child);
     $headers = 'MIME-Version: 1.0' . "\r\n"
         . 'Content-Type: text/plain; charset=UTF-8' . "\r\n"

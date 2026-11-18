@@ -1,6 +1,8 @@
 <?php
 /**
- * Génération du PDF récapitulatif des rendez-vous, semaine par semaine.
+ * Génération du PDF récapitulatif des rendez-vous : UNE page A4 paysage.
+ * Une ligne par semaine ("Semaine du ... au ..."), colonnes = jours de la
+ * semaine, chaque case contenant l'heure et le nom de l'enfant.
  * Accès réservé à l'admin. Ouvrir : pdf.php (depuis le bouton dans l'admin).
  */
 
@@ -39,32 +41,19 @@ foreach ($rows as $row) {
 }
 ksort($weeks);
 
-$joursFull = array(1 => 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche');
+/* Par jour dans chaque semaine */
+foreach ($weeks as $weekKey => $items) {
+    $perDay = array();
+    foreach ($items as $item) {
+        $perDay[$item['slot_date']][] = $item;
+    }
+    $weeks[$weekKey] = $perDay;
+}
+
 $jours = array(1 => 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.');
+$joursFull = array(1 => 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche');
 $mois = array(1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
               'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre');
-
-function pdf_date_long($ts, $withYear = false)
-{
-    global $joursFull, $mois;
-    $label = $joursFull[intval(date('N', $ts))] . ' ' . date('j', $ts) . ' ' . $mois[intval(date('n', $ts))];
-    if ($withYear) {
-        $label .= ' ' . date('Y', $ts);
-    }
-    return $label;
-}
-
-function pdf_date_court($ts)
-{
-    global $jours, $mois;
-    return $jours[intval(date('N', $ts))] . ' ' . date('j', $ts) . ' ' . $mois[intval(date('n', $ts))];
-}
-
-function pdf_heure($time)
-{
-    $ts = strtotime($time);
-    return date('G', $ts) . 'h' . date('i', $ts);
-}
 
 function pdf_enc($s)
 {
@@ -78,123 +67,122 @@ function pdf_enc($s)
     return utf8_encode($s);
 }
 
+function pdf_heure($time)
+{
+    $ts = strtotime($time);
+    return date('G', $ts) . 'h' . date('i', $ts);
+}
+
 $colors = theme_colors();
 list($r, $g, $b) = hex_to_rgb($colors['primary']);
 list($dr, $dg, $db) = hex_to_rgb($colors['dark']);
 list($sr, $sg, $sb) = hex_to_rgb($colors['soft']);
 
-$GLOBALS['docTitle'] = '';
-$GLOBALS['inTable'] = false;
-
-function pdf_table_header($pdf)
-{
-    global $r, $g, $b;
-    $pdf->SetFont('Helvetica', 'B', 11);
-    $pdf->SetTextColor(255, 255, 255);
-    $pdf->SetFillColor($r, $g, $b);
-    $pdf->Cell(55, 9, pdf_enc('Jour'), 1, 0, 'L', true);
-    $pdf->Cell(30, 9, pdf_enc('Heure'), 1, 0, 'C', true);
-    $pdf->Cell(0, 9, pdf_enc('Enfant'), 1, 1, 'L', true);
-    $pdf->SetTextColor(60, 45, 50);
-    $pdf->SetFont('Helvetica', '', 11);
-}
+$GLOBALS['majText'] = 'Mis à jour le ' . date('d/m/Y à G\hi');
+$GLOBALS['totalCount'] = count($rows);
 
 class PDF extends FPDF
 {
-    function Header()
-    {
-        if ($this->PageNo() === 1) {
-            return;
-        }
-        /* En-tête des pages suivantes : rappel du titre (+ colonnes si dans un tableau) */
-        $this->SetFont('Helvetica', 'B', 11);
-        $this->SetTextColor(80, 60, 70);
-        $this->Cell(0, 8, pdf_enc($GLOBALS['docTitle'] . ' (suite)'), 0, 1, 'L');
-        $this->Ln(2);
-        if (!empty($GLOBALS['inTable'])) {
-            pdf_table_header($this);
-        }
-    }
-
     function Footer()
     {
-        $this->SetY(-14);
+        $this->SetY(-9);
         $this->SetFont('Helvetica', 'I', 8);
         $this->SetTextColor(150, 140, 145);
-        $this->Cell(0, 6, pdf_enc('Page ' . $this->PageNo() . '/{nb}'), 0, 0, 'C');
+        $this->Cell(0, 5, pdf_enc($GLOBALS['majText'] . '  —  Total : ' . $GLOBALS['totalCount'] . ' rendez-vous'), 0, 0, 'C');
     }
 }
 
-$GLOBALS['docTitle'] = site_title() . ' — Rendez-vous';
-$pdf = new PDF('P', 'mm', 'A4');
-$pdf->AliasNbPages();
-$pdf->SetTitle(pdf_enc($GLOBALS['docTitle']));
+$pdf = new PDF('L', 'mm', 'A4');
+$pdf->SetTitle(pdf_enc(site_title() . ' — Rendez-vous'));
 $pdf->SetAuthor(pdf_enc(site_title()));
-$pdf->SetMargins(15, 16, 15);
-$pdf->SetAutoPageBreak(true, 18);
+$pdf->SetMargins(12, 12, 12);
+$pdf->SetAutoPageBreak(false);
 $pdf->AddPage();
 
-/* Titre principal */
-$pdf->SetFont('Helvetica', 'B', 17);
+$colW = 39;   /* (297 - 2 x 12) / 7  = 39 mm par jour */
+$x0 = 12;
+
+/* Titre + mention "Mis à jour le ..." */
+$pdf->SetFont('Helvetica', 'B', 14);
 $pdf->SetTextColor($dr, $dg, $db);
-$pdf->Cell(0, 10, pdf_enc($GLOBALS['docTitle']), 0, 1, 'L');
-$pdf->SetFont('Helvetica', '', 10);
+$pdf->Cell(0, 8, pdf_enc(site_title() . ' — Rendez-vous'), 0, 1, 'L');
+$pdf->SetFont('Helvetica', 'I', 9);
 $pdf->SetTextColor(120, 105, 112);
-$pdf->Cell(0, 6, pdf_enc('Récapitulatif des rendez-vous, semaine par semaine — édité le ' . date('d/m/Y')), 0, 1, 'L');
-$pdf->Ln(4);
+$pdf->Cell(0, 5, pdf_enc($GLOBALS['majText']), 0, 1, 'L');
+$pdf->Ln(2);
 
 if (count($weeks) === 0) {
-    $pdf->SetFont('Helvetica', 'I', 12);
+    $pdf->SetFont('Helvetica', 'I', 11);
     $pdf->SetTextColor(120, 105, 112);
     $pdf->Cell(0, 10, pdf_enc('Aucun rendez-vous réservé pour le moment.'), 0, 1, 'L');
 } else {
-    $firstWeek = true;
-    foreach ($weeks as $weekStartKey => $items) {
-        $weekStart = strtotime($weekStartKey);
+    foreach ($weeks as $weekKey => $perDay) {
+        $weekStart = strtotime($weekKey);
         $weekEnd = $weekStart + 6 * 86400;
 
-        /* Nouvelle page si la place manque avant un nouveau groupe de semaine */
-        if ($pdf->GetY() > 240) {
-            $GLOBALS['inTable'] = false;
-            $pdf->AddPage();
-            $firstWeek = true;
-        }
-
-        /* Titre de la semaine */
-        if (!$firstWeek) {
-            $pdf->Ln(3);
-        }
-        $firstWeek = false;
-        $pdf->SetFont('Helvetica', 'B', 12);
+        /* Bandeau "Semaine du ... au ..." */
+        $pdf->SetFont('Helvetica', 'B', 10);
         $pdf->SetTextColor($dr, $dg, $db);
         $pdf->SetFillColor($sr, $sg, $sb);
-        $label = 'Semaine du ' . pdf_date_long($weekStart) . ' au ' . pdf_date_long($weekEnd, true);
-        $pdf->Cell(0, 9, pdf_enc($label), 0, 1, 'L', true);
-        $pdf->Ln(1.5);
+        $label = 'Semaine du ' . $joursFull[intval(date('N', $weekStart))] . ' ' . date('j', $weekStart)
+            . ' ' . $mois[intval(date('n', $weekStart))] . date(' Y')
+            . ' au ' . $joursFull[intval(date('N', $weekEnd))] . ' ' . date('j', $weekEnd)
+            . ' ' . $mois[intval(date('n', $weekEnd))] . date(' Y');
+        $pdf->Cell(0, 6.5, pdf_enc($label), 0, 1, 'L', true);
 
-        pdf_table_header($pdf);
-        $GLOBALS['inTable'] = true;
-
-        foreach ($items as $item) {
-            if ($pdf->GetY() > 268) {
-                $pdf->AddPage();
-            }
-            $ts = strtotime($item['slot_date']);
-            $pdf->SetFont('Helvetica', '', 11);
-            $pdf->SetTextColor(60, 45, 50);
-            $pdf->Cell(55, 8, pdf_enc(pdf_date_court($ts)), 1, 0, 'L');
-            $pdf->Cell(30, 8, pdf_enc(pdf_heure($item['slot_time'])), 1, 0, 'C');
-            $pdf->SetFont('Helvetica', 'B', 11);
-            $pdf->Cell(0, 8, pdf_enc(child_name($item['child_first'], $item['child_initial'])), 1, 1, 'L');
+        /* En-tête des colonnes de jours */
+        $pdf->SetFont('Helvetica', 'B', 8.5);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFillColor($r, $g, $b);
+        for ($d = 0; $d < 7; $d++) {
+            $ts = $weekStart + $d * 86400;
+            $pdf->SetXY($x0 + $d * $colW, $pdf->GetY());
+            $pdf->Cell($colW, 5.5, pdf_enc($jours[intval(date('N', $ts))] . ' ' . date('j', $ts)), 1, 0, 'C', true);
         }
-        $GLOBALS['inTable'] = false;
+        $y0 = $pdf->GetY() + 5.5;
+
+        /* Hauteur de la ligne : au moins 2 lignes de contenu */
+        $maxLines = 0;
+        foreach ($perDay as $entries) {
+            $maxLines = max($maxLines, count($entries));
+        }
+        $maxLines = max($maxLines, 2);
+        $lineH = 4.2;
+        $h = $maxLines * $lineH + 2;
+
+        /* Cadre + séparateurs de colonnes */
+        $pdf->SetDrawColor(120, 105, 112);
+        $pdf->Rect($x0, $y0, $colW * 7, $h);
+        for ($i = 1; $i < 7; $i++) {
+            $lx = $x0 + $i * $colW;
+            $pdf->Line($lx, $y0, $lx, $y0 + $h);
+        }
+
+        /* Contenu de chaque jour : heure (gras) + nom de l'enfant */
+        for ($d = 0; $d < 7; $d++) {
+            $ts = $weekStart + $d * 86400;
+            $dayKey = date('Y-m-d', $ts);
+            if (!isset($perDay[$dayKey])) {
+                continue;
+            }
+            foreach ($perDay[$dayKey] as $j => $item) {
+                $pdf->SetXY($x0 + $d * $colW + 1, $y0 + 1 + $j * $lineH);
+                $pdf->SetFont('Helvetica', 'B', 8);
+                $pdf->SetTextColor(60, 45, 50);
+                $pdf->Cell(11, 3.8, pdf_enc(pdf_heure($item['slot_time'])), 0, 0, 'L');
+                $pdf->SetFont('Helvetica', '', 8);
+                $pdf->Cell($colW - 13, 3.8, pdf_enc(child_name($item['child_first'], $item['child_initial'])), 0, 0, 'L');
+            }
+        }
+
+        $pdf->SetY($y0 + $h + 1.5);
+        $pdf->SetDrawColor($r, $g, $b);
     }
 
     /* Total */
-    $pdf->Ln(6);
-    $pdf->SetFont('Helvetica', 'B', 11);
+    $pdf->SetFont('Helvetica', 'B', 10);
     $pdf->SetTextColor($dr, $dg, $db);
-    $pdf->Cell(0, 8, pdf_enc('Total : ' . count($rows) . ' rendez-vous'), 0, 1, 'L');
+    $pdf->Cell(0, 7, pdf_enc('Total : ' . count($rows) . ' rendez-vous'), 0, 1, 'L');
 }
 
 $filename = 'rendez-vous-' . date('Y-m-d') . '.pdf';

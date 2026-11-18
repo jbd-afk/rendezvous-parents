@@ -81,6 +81,10 @@ function init_db($pdo)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
 
         try { $pdo->exec('ALTER TABLE children ADD email VARCHAR(190) NULL DEFAULT NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD email1 VARCHAR(190) NULL DEFAULT NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD email2 VARCHAR(190) NULL DEFAULT NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD mail_sent_at1 DATETIME NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD mail_sent_at2 DATETIME NULL'); } catch (PDOException $ex) {}
     } else {
         $pdo->exec("CREATE TABLE IF NOT EXISTS children (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +122,20 @@ function init_db($pdo)
         )");
 
         try { $pdo->exec('ALTER TABLE children ADD COLUMN email TEXT NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD COLUMN email1 TEXT NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD COLUMN email2 TEXT NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD COLUMN mail_sent_at1 TEXT NULL'); } catch (PDOException $ex) {}
+        try { $pdo->exec('ALTER TABLE children ADD COLUMN mail_sent_at2 TEXT NULL'); } catch (PDOException $ex) {}
     }
+
+    /* Migration unique : les anciennes adresses (colonne email) deviennent Parent 1 */
+    try {
+        $chk = $pdo->query("SELECT svalue FROM settings WHERE skey = 'email1_migrated'")->fetch();
+        if (!$chk) {
+            $pdo->exec("UPDATE children SET email1 = email WHERE (email1 IS NULL OR email1 = '') AND email IS NOT NULL AND email != ''");
+            $pdo->prepare('INSERT INTO settings (skey, svalue) VALUES (?, ?)')->execute(array('email1_migrated', '1'));
+        }
+    } catch (PDOException $ex) {}
 }
 
 function db_now()

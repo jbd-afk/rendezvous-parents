@@ -67,6 +67,16 @@ h3 { margin: 16px 0 8px; font-size: 0.98rem; color: var(--rose-dark); }
     box-shadow: var(--shadow);
 }
 .secnav a:hover { background: var(--rose-soft); }
+.secnav a.current {
+    background: var(--rose);
+    color: #fff;
+    border-color: var(--rose);
+}
+.secnav a.current:hover { background: var(--rose-dark); }
+
+/* Onglets : masquer les sections inactives (si JS actif) */
+.js .admin-section { display: none; }
+.js .admin-section.current { display: block; }
 
 .topbar {
     display: flex;
@@ -207,6 +217,54 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--rose-soft);
     flex-wrap: wrap;
     margin-bottom: 14px;
 }
+
+/* Cartes enfants */
+.child-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.child-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.parent-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+.parent-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-width: 74px;
+}
+.parent-form {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex: 1;
+    min-width: 260px;
+    flex-wrap: wrap;
+}
+.parent-form select { flex: 1; min-width: 180px; }
+.mail-status {
+    font-size: 0.78rem;
+    color: var(--green);
+    background: var(--green-bg);
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+}
+
+.wide-label { grid-column: 1 / -1; }
 
 .danger-zone {
     border: 1px solid #ffc9c9;

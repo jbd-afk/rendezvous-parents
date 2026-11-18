@@ -42,7 +42,7 @@ if ($logged && $action !== '') {
             $token = generate_token();
             $stmt = $pdo->prepare('INSERT INTO children (first_name, last_initial, token, created_at) VALUES (?, ?, ?, ?)');
             $stmt->execute(array($first, $initial, $token, db_now()));
-            set_flash('ok', 'Enfant ajouté. Voici son lien personnalisé (à envoyer aux parents) : ' . child_link($token));
+            set_flash('ok', 'Enfant ajouté. Voici son lien personnalisé : ' . child_link($token));
         }
         redirect('admin.php#enfants');
     }
@@ -57,50 +57,71 @@ if ($logged && $action !== '') {
 
     if ($action === 'set_child_email') {
         $id = intval(isset($_POST['id']) ? $_POST['id'] : 0);
+        $which = intval(isset($_POST['which']) ? $_POST['which'] : 1);
+        if ($which !== 1 && $which !== 2) {
+            $which = 1;
+        }
+        $col = $which === 1 ? 'email1' : 'email2';
         $email = trim(isset($_POST['email']) ? $_POST['email'] : '');
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             set_flash('err', 'Adresse email invalide.');
         } else {
-            $pdo->prepare('UPDATE children SET email = ? WHERE id = ?')->execute(array($email, $id));
-            set_flash('ok', $email === '' ? 'Email retiré pour cet enfant.' : 'Email enregistré pour cet enfant : ' . $email);
+            $pdo->prepare('UPDATE children SET ' . $col . ' = ? WHERE id = ?')->execute(array($email, $id));
+            set_flash('ok', 'Email du Parent ' . $which . ' enregistré' . ($email === '' ? ' (retiré)' : ' : ' . $email) . '.');
         }
         redirect('admin.php#enfants');
     }
 
     if ($action === 'send_child_email') {
         $id = intval(isset($_POST['id']) ? $_POST['id'] : 0);
+        $which = intval(isset($_POST['which']) ? $_POST['which'] : 1);
+        if ($which !== 1 && $which !== 2) {
+            $which = 1;
+        }
+        $emailCol = $which === 1 ? 'email1' : 'email2';
+        $stampCol = $which === 1 ? 'mail_sent_at1' : 'mail_sent_at2';
         $stmt = $pdo->prepare('SELECT * FROM children WHERE id = ?');
         $stmt->execute(array($id));
         $child = $stmt->fetch();
         if (!$child) {
             set_flash('err', 'Enfant introuvable.');
-        } elseif ($child['email'] === null || $child['email'] === '') {
-            set_flash('err', 'Enregistrez d\'abord une adresse email pour ' . child_name($child['first_name'], $child['last_initial']) . ' (menu déroulant).');
+        } elseif ($child[$emailCol] === null || $child[$emailCol] === '') {
+            set_flash('err', 'Choisissez d\'abord l\'email du Parent ' . $which . ' pour ' . child_name($child['first_name'], $child['last_initial']) . ' (menu déroulant puis OK).');
         } else {
-            $sent = send_parent_email($child['email'], $child);
-            if ($sent) {
-                set_flash('ok', 'Email envoyé à ' . $child['email'] . ' avec le lien de ' . child_name($child['first_name'], $child['last_initial']) . '.');
+            if (send_parent_email($child[$emailCol], $child)) {
+                $pdo->prepare('UPDATE children SET ' . $stampCol . ' = ? WHERE id = ?')->execute(array(db_now(), $id));
+                set_flash('ok', 'Email envoyé au Parent ' . $which . ' (' . $child[$emailCol] . ') avec le lien de ' . child_name($child['first_name'], $child['last_initial']) . '.');
             } else {
-                set_flash('err', 'L\'envoi à ' . $child['email'] . ' a échoué. Vérifiez l\'adresse expéditrice dans Réglages, ou utilisez le bouton « Brouillon ».');
+                set_flash('err', 'L\'envoi à ' . $child[$emailCol] . ' a échoué. Vérifiez l\'adresse expéditrice dans Réglages, ou utilisez le bouton « Brouillon ».');
             }
         }
         redirect('admin.php#enfants');
     }
 
     if ($action === 'send_all_emails') {
-        $withEmail = $pdo->query("SELECT * FROM children WHERE email IS NOT NULL AND email != '' ORDER BY first_name ASC")->fetchAll();
-        if (count($withEmail) === 0) {
-            set_flash('err', 'Aucun enfant n\'a d\'adresse email enregistrée. Associez d\'abord les emails dans la section « Enfants ».');
-        } else {
-            $sent = 0;
-            $failed = 0;
-            foreach ($withEmail as $child) {
-                if (send_parent_email($child['email'], $child)) {
+        $all = $pdo->query('SELECT * FROM children ORDER BY first_name ASC')->fetchAll();
+        $targets = 0;
+        $sent = 0;
+        $failed = 0;
+        foreach ($all as $child) {
+            foreach (array(1 => 'email1', 2 => 'email2') as $which => $col) {
+                $email = $child[$col];
+                if ($email === null || $email === '') {
+                    continue;
+                }
+                $targets++;
+                if (send_parent_email($email, $child)) {
+                    $stampCol = $which === 1 ? 'mail_sent_at1' : 'mail_sent_at2';
+                    $pdo->prepare('UPDATE children SET ' . $stampCol . ' = ? WHERE id = ?')->execute(array(db_now(), $child['id']));
                     $sent++;
                 } else {
                     $failed++;
                 }
             }
+        }
+        if ($targets === 0) {
+            set_flash('err', 'Aucun email parent enregistré. Associez d\'abord les emails (Parent 1 / Parent 2) dans la section « Enfants ».');
+        } else {
             $msg = $sent . ' email' . ($sent > 1 ? 's' : '') . ' envoyé' . ($sent > 1 ? 's' : '') . '.';
             if ($failed > 0) {
                 $msg .= ' ' . $failed . ' échec' . ($failed > 1 ? 's' : '') . '.';
@@ -221,7 +242,8 @@ if ($logged && $action !== '') {
         $stmt->execute(array($id));
         $contact = $stmt->fetch();
         if ($contact) {
-            $pdo->prepare('UPDATE children SET email = \'\' WHERE email = ?')->execute(array($contact['email']));
+            $pdo->prepare("UPDATE children SET email1 = '' WHERE email1 = ?")->execute(array($contact['email']));
+            $pdo->prepare("UPDATE children SET email2 = '' WHERE email2 = ?")->execute(array($contact['email']));
             $pdo->prepare('DELETE FROM contacts WHERE id = ?')->execute(array($id));
         }
         set_flash('ok', 'Contact supprimé.');
@@ -244,6 +266,11 @@ if ($logged && $action !== '') {
             $custom = strtolower($customInput);
         }
         set_setting('custom_primary', $custom);
+
+        $mailSubject = isset($_POST['mail_subject']) ? $_POST['mail_subject'] : '';
+        $mailBody = isset($_POST['mail_body']) ? $_POST['mail_body'] : '';
+        set_setting('mail_subject', $mailSubject);
+        set_setting('mail_body', $mailBody);
 
         $sender = trim(isset($_POST['sender_email']) ? $_POST['sender_email'] : '');
         if ($sender !== '' && !filter_var($sender, FILTER_VALIDATE_EMAIL)) {
@@ -286,6 +313,16 @@ $flash = take_flash();
 $children = $pdo->query('SELECT * FROM children ORDER BY first_name ASC, last_initial ASC')->fetchAll();
 $contacts = $pdo->query('SELECT * FROM contacts ORDER BY name ASC, email ASC')->fetchAll();
 
+$bookingByChild = array();
+$bkRows = $pdo->query(
+    'SELECT b.child_id, s.slot_date, s.slot_time
+     FROM bookings b
+     JOIN slots s ON s.id = b.slot_id'
+)->fetchAll();
+foreach ($bkRows as $row) {
+    $bookingByChild[$row['child_id']] = $row;
+}
+
 $slots = $pdo->query(
     'SELECT s.id, s.slot_date, s.slot_time,
             b.id AS booking_id,
@@ -315,11 +352,14 @@ $themeKey = get_setting('theme', 'rose');
 $customPrimary = get_setting('custom_primary', '');
 $senderEmail = get_setting('sender_email', '');
 $replyEmail = get_setting('reply_email', '');
+$mailSubjectCur = get_setting('mail_subject', '');
+$mailBodyCur = get_setting('mail_body', '');
+$mailDefaults = mail_template_defaults();
 $presets = theme_presets();
 $colors = theme_colors();
 $childrenWithEmail = 0;
 foreach ($children as $c) {
-    if ($c['email'] !== null && $c['email'] !== '') {
+    if (($c['email1'] !== null && $c['email1'] !== '') || ($c['email2'] !== null && $c['email2'] !== '')) {
         $childrenWithEmail++;
     }
 }
@@ -365,11 +405,11 @@ foreach ($children as $c) {
     <?php if ($flash) { ?><div class="flash flash-<?php echo e($flash['type']); ?>"><?php echo e($flash['text']); ?></div><?php } ?>
 
     <nav class="secnav">
-        <a href="#enfants">👶 Enfants</a>
-        <a href="#creneaux">📅 Créneaux</a>
-        <a href="#recap">📋 Récapitulatif</a>
-        <a href="#emails">✉ Emails</a>
-        <a href="#reglages">⚙ Réglages</a>
+        <a href="#enfants" data-target="enfants">👶 Enfants</a>
+        <a href="#creneaux" data-target="creneaux">📅 Créneaux</a>
+        <a href="#recap" data-target="recap">📋 Récapitulatif</a>
+        <a href="#emails" data-target="emails">✉ Emails</a>
+        <a href="#reglages" data-target="reglages">⚙ Réglages</a>
     </nav>
 
     <div class="stats">
@@ -379,7 +419,8 @@ foreach ($children as $c) {
         <div class="stat stat-past"><span class="stat-num"><?php echo $pastCount; ?></span><span class="stat-label">passés</span></div>
     </div>
 
-    <section class="card" id="enfants">
+    <?php /* ----- Onglet Enfants ----- */ ?>
+    <section class="card admin-section" id="enfants">
         <h2>👶 Enfants &amp; liens parents</h2>
         <form method="post" action="admin.php" class="inline-form">
             <input type="hidden" name="action" value="add_child">
@@ -395,55 +436,77 @@ foreach ($children as $c) {
             <ul class="child-list">
             <?php foreach ($children as $child) {
                 $link = child_link($child['token']);
-                $mailto = 'mailto:' . rawurlencode($child['email'] !== null ? $child['email'] : '')
-                    . '?subject=' . rawurlencode(site_title() . ' — Rendez-vous de ' . child_name($child['first_name'], $child['last_initial']))
+                $email1 = ($child['email1'] !== null) ? $child['email1'] : '';
+                $curBooking = isset($bookingByChild[$child['id']]) ? $bookingByChild[$child['id']] : null;
+                $mailto = 'mailto:' . rawurlencode($email1)
+                    . '?subject=' . rawurlencode(mail_subject($child))
                     . '&body=' . rawurlencode(parent_email_body($child, true));
-                $childEmail = ($child['email'] !== null && $child['email'] !== '') ? $child['email'] : '';
             ?>
                 <li class="child-item">
                     <div class="child-head">
-                        <strong><?php echo e(child_name($child['first_name'], $child['last_initial'])); ?></strong>
-                        <form method="post" action="admin.php" class="form-inline"
-                              onsubmit="return confirm('Supprimer cet enfant ? Son créneau réservé éventuel sera libéré.');">
-                            <input type="hidden" name="action" value="delete_child">
+                        <span class="child-title">
+                            <strong><?php echo e(child_name($child['first_name'], $child['last_initial'])); ?></strong>
+                            <?php if ($curBooking) { ?>
+                                <span class="badge badge-booked">📌 <?php echo e(format_slot($curBooking['slot_date'], $curBooking['slot_time'])); ?></span>
+                            <?php } else { ?>
+                                <span class="badge badge-free">Pas encore de créneau</span>
+                            <?php } ?>
+                        </span>
+                        <span class="child-tools">
+                            <button type="button" class="btn btn-secondary btn-small copy-btn" data-copy="<?php echo e($link); ?>">🔗 Copier le lien</button>
+                            <a class="btn btn-secondary btn-small" href="<?php echo e($mailto); ?>">Brouillon</a>
+                            <form method="post" action="admin.php" class="form-inline"
+                                  onsubmit="return confirm('Supprimer cet enfant ? Son créneau réservé éventuel sera libéré.');">
+                                <input type="hidden" name="action" value="delete_child">
+                                <input type="hidden" name="id" value="<?php echo intval($child['id']); ?>">
+                                <?php echo csrf_field(); ?>
+                                <button type="submit" class="btn btn-danger btn-small">Supprimer</button>
+                            </form>
+                        </span>
+                    </div>
+                    <?php for ($which = 1; $which <= 2; $which++) {
+                        $emailCol = 'email' . $which;
+                        $stampCol = 'mail_sent_at' . $which;
+                        $val = ($child[$emailCol] !== null) ? $child[$emailCol] : '';
+                        $sentAt = ($child[$stampCol] !== null && $child[$stampCol] !== '') ? date('d/m/Y à G\hi', strtotime($child[$stampCol])) : '';
+                    ?>
+                    <div class="parent-row">
+                        <span class="parent-label">Parent <?php echo $which; ?></span>
+                        <form method="post" action="admin.php" class="parent-form">
+                            <input type="hidden" name="action" value="set_child_email">
+                            <input type="hidden" name="which" value="<?php echo $which; ?>">
                             <input type="hidden" name="id" value="<?php echo intval($child['id']); ?>">
                             <?php echo csrf_field(); ?>
-                            <button type="submit" class="btn btn-danger btn-small">Supprimer</button>
+                            <select name="email">
+                                <option value="">— Choisir un email… —</option>
+                                <?php
+                                $seen = array();
+                                if ($val !== '') {
+                                    echo '<option value="' . e($val) . '" selected>' . e($val) . '</option>';
+                                    $seen[$val] = true;
+                                }
+                                foreach ($contacts as $ct) {
+                                    if (isset($seen[$ct['email']])) { continue; }
+                                    echo '<option value="' . e($ct['email']) . '">' . e(($ct['name'] !== '' ? $ct['name'] . ' — ' : '') . $ct['email']) . '</option>';
+                                }
+                                ?>
+                            </select>
+                            <button type="submit" class="btn btn-secondary btn-small">OK</button>
+                            <button type="submit" class="btn btn-primary btn-small" name="action" value="send_child_email">✉ Envoyer</button>
                         </form>
+                        <?php if ($sentAt !== '') { ?>
+                            <span class="mail-status" title="Email envoyé via le serveur">✉ envoyé le <?php echo e($sentAt); ?></span>
+                        <?php } ?>
                     </div>
-                    <form method="post" action="admin.php" class="email-row">
-                        <input type="hidden" name="action" value="set_child_email">
-                        <input type="hidden" name="id" value="<?php echo intval($child['id']); ?>">
-                        <?php echo csrf_field(); ?>
-                        <select name="email">
-                            <option value="">— Email du parent… —</option>
-                            <?php
-                            $seen = array();
-                            if ($childEmail !== '') {
-                                echo '<option value="' . e($childEmail) . '" selected>' . e($childEmail) . '</option>';
-                                $seen[$childEmail] = true;
-                            }
-                            foreach ($contacts as $ct) {
-                                if (isset($seen[$ct['email']])) { continue; }
-                                echo '<option value="' . e($ct['email']) . '">' . e(($ct['name'] !== '' ? $ct['name'] . ' — ' : '') . $ct['email']) . '</option>';
-                            }
-                            ?>
-                        </select>
-                        <button type="submit" class="btn btn-secondary btn-small">OK</button>
-                        <button type="submit" class="btn btn-primary btn-small" name="action" value="send_child_email">✉ Envoyer</button>
-                    </form>
-                    <div class="link-row">
-                        <input type="text" readonly value="<?php echo e($link); ?>" onclick="this.select()">
-                        <button type="button" class="btn btn-secondary btn-small copy-btn" data-copy="<?php echo e($link); ?>">Copier</button>
-                        <a class="btn btn-secondary btn-small" href="<?php echo e($mailto); ?>">Brouillon</a>
-                    </div>
+                    <?php } ?>
                 </li>
             <?php } ?>
             </ul>
         <?php } ?>
     </section>
 
-    <section class="card" id="creneaux">
+    <?php /* ----- Onglet Créneaux ----- */ ?>
+    <section class="card admin-section" id="creneaux">
         <h2>📅 Créneaux (15 minutes)</h2>
         <form method="post" action="admin.php" class="inline-form">
             <input type="hidden" name="action" value="add_slots">
@@ -456,11 +519,12 @@ foreach ($children as $c) {
         <p class="muted">Exemple : 14h00 → 16h00 génère 8 créneaux de 15 minutes.</p>
     </section>
 
-    <section class="card" id="recap">
+    <?php /* ----- Onglet Récapitulatif ----- */ ?>
+    <section class="card admin-section" id="recap">
         <h2>📋 Récapitulatif des créneaux</h2>
         <div class="recap-actions">
             <a class="btn btn-secondary" href="pdf.php">📄 Télécharger le PDF (semaine par semaine)</a>
-            <span class="muted small">Tableau des rendez-vous réservés : jour, heure et nom de l'enfant.</span>
+            <span class="muted small">Une page : chaque semaine en ligne, les jours en colonnes, l'heure et le nom de l'enfant.</span>
         </div>
         <?php if ($total === 0) { ?>
             <p class="muted">Aucun créneau proposé pour le moment.</p>
@@ -514,9 +578,10 @@ foreach ($children as $c) {
         <?php } ?>
     </section>
 
-    <section class="card" id="emails">
+    <?php /* ----- Onglet Emails ----- */ ?>
+    <section class="card admin-section" id="emails">
         <h2>✉ Emails des parents</h2>
-        <p class="muted">Enregistrez les adresses (une par une, ou collez toute la liste d'un coup), puis associez une adresse à chaque enfant dans la section « Enfants ». Le bouton « ✉ Envoyer » envoie le lien personnel par email via le serveur Free.</p>
+        <p class="muted">Enregistrez les adresses (une par une, ou collez toute la liste d'un coup), puis associez-les à chaque enfant (Parent 1 / Parent 2) dans la section « Enfants ». Le bouton « ✉ Envoyer » envoie le lien personnel par email via le serveur Free.</p>
 
         <h3>Ajouter une adresse</h3>
         <form method="post" action="admin.php" class="inline-form">
@@ -556,14 +621,15 @@ foreach ($children as $c) {
             <input type="hidden" name="action" value="send_all_emails">
             <?php echo csrf_field(); ?>
             <button type="submit" class="btn btn-primary"
-                    onclick="return confirm('Envoyer le lien personnalisé par email à tous les enfants qui ont une adresse enregistrée (<?php echo $childrenWithEmail; ?>) ?');">
-                ✉ Envoyer les liens à tous (<?php echo $childrenWithEmail; ?>)
+                    onclick="return confirm('Envoyer le lien personnalisé par email à tous les parents enregistrés (<?php echo $childrenWithEmail; ?> familles) ?');">
+                ✉ Envoyer les emails à tous (<?php echo $childrenWithEmail; ?> familles)
             </button>
         </form>
-        <p class="muted small">Chaque famille reçoit son propre email avec son lien unique. Indiquez votre adresse @free.fr comme expéditeur dans Réglages pour une meilleure délivrabilité.</p>
+        <p class="muted small">Chaque parent reçoit son propre email avec le lien unique de l'enfant. L'objet et le contenu des emails se règlent dans Réglages.</p>
     </section>
 
-    <section class="card" id="reglages">
+    <?php /* ----- Onglet Réglages ----- */ ?>
+    <section class="card admin-section" id="reglages">
         <h2>⚙ Réglages</h2>
         <form method="post" action="admin.php">
             <input type="hidden" name="action" value="save_settings">
@@ -590,12 +656,22 @@ foreach ($children as $c) {
 
                 <label>Email expéditeur (From)
                     <input type="text" name="sender_email" value="<?php echo e($senderEmail); ?>" placeholder="vous@free.fr" maxlength="190">
-                    <small class="muted">De préférence l'adresse @free.fr du site (les serveurs Free ne sont pas autorisés à envoyer au nom d'autres domaines).</small>
+                    <small class="muted">De préférence l'adresse @free.fr du site.</small>
                 </label>
 
                 <label>Adresse de réponse (Reply-To)
                     <input type="text" name="reply_email" value="<?php echo e($replyEmail); ?>" placeholder="prenom.nom@ac-xxx.fr" maxlength="190">
-                    <small class="muted">Quand un parent répond, le message part vers cette adresse (ex. l'adresse académique).</small>
+                    <small class="muted">Les réponses des parents arrivent vers cette adresse.</small>
+                </label>
+
+                <label class="wide-label">Objet des emails
+                    <input type="text" name="mail_subject" value="<?php echo e($mailSubjectCur); ?>" placeholder="<?php echo e($mailDefaults['subject']); ?>" maxlength="200">
+                    <small class="muted">Variables : {titre}, {enfant}. Vide = modèle par défaut.</small>
+                </label>
+
+                <label class="wide-label">Contenu des emails
+                    <textarea name="mail_body" rows="8" placeholder="Vide = modèle par défaut."><?php echo e($mailBodyCur); ?></textarea>
+                    <small class="muted">Variables disponibles : <strong>{enfant}</strong> (prénom + initiale), <strong>{lien}</strong> (lien personnalisé), <strong>{titre}</strong>. Vide = modèle par défaut.</small>
                 </label>
             </div>
 
@@ -630,6 +706,7 @@ foreach ($children as $c) {
 </div>
 <script>
 (function () {
+    /*Copier le lien */
     var buttons = document.querySelectorAll('.copy-btn');
     for (var i = 0; i < buttons.length; i++) {
         buttons[i].addEventListener('click', function () {
@@ -652,6 +729,51 @@ foreach ($children as $c) {
                 document.body.removeChild(input);
             }
         });
+    }
+
+    /* Onglets */
+    document.body.className += ' js';
+    var tabs = document.querySelectorAll('.secnav a');
+
+    function showTab(id) {
+        var sections = document.querySelectorAll('.admin-section');
+        for (var i = 0; i < sections.length; i++) {
+            var cl = sections[i].className.replace(/ ?current/, '');
+            if (sections[i].id === id) {
+                cl += ' current';
+            }
+            sections[i].className = cl;
+        }
+        for (var j = 0; j < tabs.length; j++) {
+            var tcl = tabs[j].className.replace(/ ?current/, '');
+            if (tabs[j].getAttribute('data-target') === id) {
+                tcl += ' current';
+            }
+            tabs[j].className = tcl;
+        }
+        try { sessionStorage.setItem('rvTab', id); } catch (err) {}
+    }
+
+    for (var k = 0; k < tabs.length; k++) {
+        (function (tab) {
+            tab.addEventListener('click', function (e) {
+                e.preventDefault();
+                showTab(tab.getAttribute('data-target'));
+            });
+        })(tabs[k]);
+    }
+
+    var initial = null;
+    if (location.hash && location.hash.length > 1) {
+        initial = location.hash.substring(1);
+    } else {
+        try { initial = sessionStorage.getItem('rvTab'); } catch (err) {}
+    }
+    var valid = ['enfants', 'creneaux', 'recap', 'emails', 'reglages'];
+    if (initial && valid.join(',').indexOf(initial) !== -1) {
+        showTab(initial);
+    } else if (tabs.length > 0) {
+        showTab('enfants');
     }
 })();
 </script>

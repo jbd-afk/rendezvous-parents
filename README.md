@@ -16,21 +16,25 @@ aux parents, via des liens personnels uniques.
 - Tableau récapitulatif : créneaux **disponibles**, **réservés** (avec le nom de
   l'enfant) et **passés** (grisés automatiquement).
 - Actions : libérer un créneau réservé, supprimer un créneau libre.
-- **Export PDF** : un bouton génère un PDF récapitulatif des rendez-vous
-  (jour, heure, enfant), groupé semaine par semaine, aux couleurs du site
-  (généré avec FPDF, inclus).
+- **Export PDF** : un bouton génère un PDF sur **une seule page** (A4 paysage) : une ligne par semaine (« Semaine du … au … »), les **jours en colonnes**, et dans chaque case l'heure et le nom de l'enfant. Mention « Mis à jour le … (heure) » et total. Couleurs du site reprises (généré avec FPDF, inclus).
+- **Navigation par onglets** dans l'admin (Enfants, Créneaux, Récapitulatif, Emails, Réglages) ; les compteurs (proposés / disponibles / réservés / passés) restent toujours visibles.
+- Dans chaque carte enfant : **Parent 1** et **Parent 2** (email chacun, envoi et date d'envoi séparés), **créneau réservé affiché** (jour + heure), et bouton « 🔗 Copier le lien » (le lien n'est plus affiché en clair).
+- **Modèle d'email paramétrable** dans Réglages : objet et contenu personnalisables avec les variables `{enfant}` (prénom + initiale), `{lien}` (lien unique) et `{titre}`.
 - Fonctionne en PHP 5.6 et PHP 8.5 (directive `php56 1` ou `php85 1`).
 
 ### Emails des parents
 - **Carnet d'adresses** : ajout d'adresses une par une, ou **import d'une liste
   complète en collant** un texte (une adresse par ligne, formats acceptés :
   `Marie <marie@exemple.fr>`, `Marie; marie@exemple.fr`, `marie@exemple.fr`).
-- Association d'une adresse à chaque enfant via un **menu déroulant**.
-- Bouton **« ✉ Envoyer »** par enfant : envoie le lien personnel par email
+- Association de deux adresses par enfant (**Parent 1 / Parent 2**) via des
+  **menus déroulants**, avec **date et heure du dernier envoi** pour chacun.
+- Bouton **« ✉ Envoyer »** par parent : envoie le lien personnel par email
   (fonction `mail()` de PHP, disponible sur les Pages Perso Free).
-- Bouton **« ✉ Envoyer les liens à tous »** : envoie individuellement un email
-  personnalisé (avec le lien unique de chaque enfant) à toutes les familles
-  qui ont une adresse enregistrée.
+- Bouton **« ✉ Envoyer les emails à tous »** : envoie individuellement un email
+  personnalisé (avec le lien unique de chaque enfant) à tous les parents
+  enregistrés.
+- Objet et contenu des emails **personnalisables dans Réglages** via le
+  modèle avec variables `{enfant}`, `{lien}`, `{titre}`.
 - Indiquez votre adresse @free.fr comme **expéditeur** (From) dans Réglages
   pour une meilleure délivrabilité, et votre adresse professionnelle (ex.
   académique) comme **adresse de réponse** (Reply-To) : les réponses des
